@@ -101,6 +101,15 @@ class Task(BaseModel):
     description: str | None = None
     priority: str = "Medium"
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "title": "Complete FastAPI assignment",
+                "description": "Submit the To-Do project on Educollab",
+                "priority": "High"
+            }
+        }
+
 # ---------------- HOME ----------------
 @app.get("/")
 def home():
