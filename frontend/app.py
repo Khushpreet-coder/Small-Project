@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 
-# API_URL = "http://127.0.0.1:8000"
 API_URL = "https://small-project-todo.onrender.com"
 
 st.title("Smart Task Tracker 📝")
@@ -16,58 +15,76 @@ if choice == "Add Task":
     priority = st.selectbox("Priority", ["Low", "Medium", "High"])
 
     if st.button("Add Task"):
-        response = requests.post(
-            f"{API_URL}/tasks",
-            json={
-                "title": title,
-                "description": description,
-                "priority": priority
-            }
-        )
-        st.success(response.json()["message"])
+        try:
+            response = requests.post(
+                f"{API_URL}/tasks",
+                json={
+                    "title": title,
+                    "description": description,
+                    "priority": priority
+                }
+            )
+
+            data = response.json()
+            if response.status_code == 200:
+                st.success(data.get("message", "Task added successfully!"))
+            else:
+                st.error(data.get("detail", response.text))
+        except Exception:
+            st.error(f"Unexpected response from server: {response.text}")
 
 elif choice == "View Tasks":
     st.subheader("All Tasks")
-    response = requests.get(f"{API_URL}/tasks")
-    tasks = response.json()
+    try:
+        response = requests.get(f"{API_URL}/tasks")
+        tasks = response.json()
 
-    for task in tasks:
-        status = task["status"]
+        for task in tasks:
+            status = task.get("status", "Pending")
 
-        # 🔥 Add green tick if completed
-        if status.lower() == "completed":
-            st.markdown(
-                f"""
-                ### ✔ {task['title']}
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                f"""
-                ### ❌ {task['title']}
-                """,
-                unsafe_allow_html=True
-            )
+            if status.lower() == "completed":
+                st.markdown(f"### ✔ {task['title']}")
+            elif status.lower() == "deleted":
+                st.markdown(f"### 🗑 {task['title']}")
+            else:
+                st.markdown(f"### ❌ {task['title']}")
 
-        st.write(f"**ID:** {task['id']}")
-        st.write(f"**Description:** {task.get('description', 'No description')}")
-        st.write(f"**Priority:** {task.get('priority', 'Medium')}")
-        st.write(f"**Status:** {status}")
-        st.write("---")
+            st.write(f"**ID:** {task['id']}")
+            st.write(f"**Description:** {task.get('description') or 'No description'}")
+            st.write(f"**Priority:** {task.get('priority', 'Medium')}")
+            st.write(f"**Status:** {status}")
+            st.write("---")
+    except Exception as e:
+        st.error(f"Error fetching tasks: {e}")
 
 elif choice == "Update Task":
     st.subheader("Mark Task as Completed")
     task_id = st.number_input("Enter Task ID", min_value=1)
 
     if st.button("Update Task"):
-        response = requests.put(f"{API_URL}/tasks/{task_id}")
-        st.success(response.json()["message"])
+        try:
+            response = requests.put(f"{API_URL}/tasks/{task_id}")
+            data = response.json()
+
+            if response.status_code == 200:
+                st.success(data.get("message", "Task updated successfully!"))
+            else:
+                st.error(data.get("detail", response.text))
+        except Exception:
+            st.error(f"Unexpected response from server: {response.text}")
 
 elif choice == "Delete Task":
     st.subheader("Delete Task")
     task_id = st.number_input("Enter Task ID to Delete", min_value=1)
 
     if st.button("Delete Task"):
-        response = requests.delete(f"{API_URL}/tasks/{task_id}")
-        st.success(response.json()["message"])
+        try:
+            response = requests.delete(f"{API_URL}/tasks/{task_id}")
+            data = response.json()
+
+            if response.status_code == 200:
+                st.success(data.get("message", "Task deleted successfully!"))
+            else:
+                st.error(data.get("detail", response.text))
+        except Exception:
+            st.error(f"Unexpected response from server: {response.text}")
