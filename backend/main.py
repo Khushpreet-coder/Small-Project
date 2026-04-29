@@ -86,6 +86,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -94,7 +95,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# ----------------- MODEL -----------------
 class Task(BaseModel):
     title: str
     description: str | None = None
@@ -104,98 +105,103 @@ class Task(BaseModel):
         json_schema_extra = {
             "example": {
                 "title": "Complete FastAPI assignment",
-                "description": "Submit the To-Do project on Educollab",
+                "description": "Submit the To-Do project",
                 "priority": "High"
             }
         }
 
-
+# ----------------- HOME -----------------
 @app.get("/")
 def home():
     return {"message": "To-Do API is running"}
 
-
+# ----------------- CREATE TASK -----------------
 @app.post("/tasks")
 def add_task(task: Task):
     conn = get_connection()
-    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
-    query = """
-    INSERT INTO tasks (title, description, priority)
-    VALUES (%s, %s, %s)
-    """
-    cursor.execute(query, (task.title, task.description, task.priority))
-    conn.commit()
+    try:
+        query = """
+        INSERT INTO tasks (title, description, priority)
+        VALUES (%s, %s, %s)
+        """
+        cursor.execute(query, (task.title, task.description, task.priority))
+        conn.commit()
 
-    cursor.close()
-    conn.close()
+        return {"message": "Task added successfully"}
 
-    return {"message": "Task added successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+    finally:
+        cursor.close()
+        conn.close()
 
+# ----------------- GET TASKS -----------------
 @app.get("/tasks")
 def get_tasks():
     conn = get_connection()
-    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT * FROM tasks")
-    tasks = cursor.fetchall()
+    try:
+        cursor.execute("SELECT * FROM tasks")
+        tasks = cursor.fetchall()
+        return tasks
 
-    cursor.close()
-    conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return tasks
+    finally:
+        cursor.close()
+        conn.close()
 
-
+# ----------------- UPDATE TASK -----------------
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int):
     conn = get_connection()
-    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
-    task = cursor.fetchone()
+    try:
+        cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
+        task = cursor.fetchone()
 
-    if not task:
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        cursor.execute(
+            "UPDATE tasks SET status = 'Completed' WHERE id = %s",
+            (task_id,)
+        )
+        conn.commit()
+
+        return {"message": "Task marked as completed"}
+
+    finally:
         cursor.close()
         conn.close()
-        raise HTTPException(status_code=404, detail="Task not found")
 
-    cursor.execute(
-        "UPDATE tasks SET status = 'Completed' WHERE id = %s",
-        (task_id,)
-    )
-    conn.commit()
-
-    cursor.close()
-    conn.close()
-
-    return {"message": "Task marked as completed"}
-
-
+# ----------------- DELETE (SOFT DELETE) -----------------
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
     conn = get_connection()
-    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
-    task = cursor.fetchone()
+    try:
+        cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
+        task = cursor.fetchone()
 
-    if not task:
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        cursor.execute(
+            "UPDATE tasks SET status = 'Deleted' WHERE id = %s",
+            (task_id,)
+        )
+        conn.commit()
+
+        return {"message": "Task marked as deleted"}
+
+    finally:
         cursor.close()
         conn.close()
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    cursor.execute(
-        "UPDATE tasks SET status = 'Deleted' WHERE id = %s",
-        (task_id,)
-    )
-    conn.commit()
-
-    cursor.close()
-    conn.close()
-
-    return {"message": "Task marked as deleted"}
