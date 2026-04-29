@@ -118,6 +118,7 @@ def home():
 @app.post("/tasks")
 def add_task(task: Task):
     conn = get_connection()
+    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
     query = """
@@ -136,6 +137,7 @@ def add_task(task: Task):
 @app.get("/tasks")
 def get_tasks():
     conn = get_connection()
+    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("SELECT * FROM tasks")
@@ -150,6 +152,7 @@ def get_tasks():
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int):
     conn = get_connection()
+    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
@@ -175,6 +178,7 @@ def update_task(task_id: int):
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
     conn = get_connection()
+    conn.ping(reconnect=True, attempts=3, delay=2)
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
