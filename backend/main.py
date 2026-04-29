@@ -83,7 +83,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from database import get_connection
 from fastapi.middleware.cors import CORSMiddleware
-import mysql.connector
 
 app = FastAPI()
 
@@ -111,7 +110,7 @@ def home():
 @app.post("/tasks")
 def add_task(task: Task):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     try:
         cursor.execute(
@@ -119,9 +118,10 @@ def add_task(task: Task):
             (task.title, task.description, task.priority)
         )
         conn.commit()
+
         return {"message": "Task added successfully"}
 
-    except mysql.connector.Error as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
@@ -132,13 +132,24 @@ def add_task(task: Task):
 @app.get("/tasks")
 def get_tasks():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     try:
         cursor.execute("SELECT * FROM tasks")
-        return cursor.fetchall()
+        rows = cursor.fetchall()
 
-    except mysql.connector.Error as e:
+        return [
+            {
+                "id": r[0],
+                "title": r[1],
+                "description": r[2],
+                "priority": r[3],
+                "status": r[4],
+            }
+            for r in rows
+        ]
+
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
@@ -149,7 +160,7 @@ def get_tasks():
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     try:
         cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
@@ -172,7 +183,7 @@ def update_task(task_id: int):
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
 
     try:
         cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
