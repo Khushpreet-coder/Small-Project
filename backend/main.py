@@ -83,10 +83,11 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from database import get_connection
 from fastapi.middleware.cors import CORSMiddleware
+import mysql.connector
 
 app = FastAPI()
 
-# CORS
+# ---------------- CORS ----------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -95,50 +96,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ----------------- MODEL -----------------
+# ---------------- MODEL ----------------
 class Task(BaseModel):
     title: str
     description: str | None = None
     priority: str = "Medium"
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "title": "Complete FastAPI assignment",
-                "description": "Submit the To-Do project",
-                "priority": "High"
-            }
-        }
-
-# ----------------- HOME -----------------
+# ---------------- HOME ----------------
 @app.get("/")
 def home():
     return {"message": "To-Do API is running"}
 
-# ----------------- CREATE TASK -----------------
+# ---------------- CREATE TASK ----------------
 @app.post("/tasks")
 def add_task(task: Task):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
     try:
-        query = """
-        INSERT INTO tasks (title, description, priority)
-        VALUES (%s, %s, %s)
-        """
-        cursor.execute(query, (task.title, task.description, task.priority))
+        cursor.execute(
+            "INSERT INTO tasks (title, description, priority) VALUES (%s, %s, %s)",
+            (task.title, task.description, task.priority)
+        )
         conn.commit()
-
         return {"message": "Task added successfully"}
 
-    except Exception as e:
+    except mysql.connector.Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         cursor.close()
         conn.close()
 
-# ----------------- GET TASKS -----------------
+# ---------------- GET TASKS ----------------
 @app.get("/tasks")
 def get_tasks():
     conn = get_connection()
@@ -146,17 +136,16 @@ def get_tasks():
 
     try:
         cursor.execute("SELECT * FROM tasks")
-        tasks = cursor.fetchall()
-        return tasks
+        return cursor.fetchall()
 
-    except Exception as e:
+    except mysql.connector.Error as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         cursor.close()
         conn.close()
 
-# ----------------- UPDATE TASK -----------------
+# ---------------- UPDATE TASK ----------------
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int):
     conn = get_connection()
@@ -164,9 +153,7 @@ def update_task(task_id: int):
 
     try:
         cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
-        task = cursor.fetchone()
-
-        if not task:
+        if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="Task not found")
 
         cursor.execute(
@@ -181,7 +168,7 @@ def update_task(task_id: int):
         cursor.close()
         conn.close()
 
-# ----------------- DELETE (SOFT DELETE) -----------------
+# ---------------- DELETE TASK ----------------
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
     conn = get_connection()
@@ -189,9 +176,7 @@ def delete_task(task_id: int):
 
     try:
         cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
-        task = cursor.fetchone()
-
-        if not task:
+        if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="Task not found")
 
         cursor.execute(
