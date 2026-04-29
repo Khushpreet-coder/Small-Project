@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # API_URL = "http://127.0.0.1:8000"
-API_URL = "https://your-backend-name.onrender.com"
+API_URL = "https://small-project-todo.onrender.com"
 
 st.title("Smart Task Tracker 📝")
 
